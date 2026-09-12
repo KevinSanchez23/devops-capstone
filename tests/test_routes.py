@@ -123,4 +123,76 @@ class TestAccountService(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
-    # ADD YOUR TEST CASES HERE ...
+    def test_get_account_list(self):
+        """It should Get a list of Accounts"""
+        accounts = self._create_accounts(5)
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), len(accounts))
+
+    def test_get_empty_account_list(self):
+        """It should Get an empty list when there are no Accounts"""
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json(), [])
+
+    def test_get_account(self):
+        """It should Get a single Account"""
+        account = self._create_accounts(1)[0]
+        response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data, account.serialize())
+
+    def test_get_account_not_found(self):
+        """It should not Get an Account that does not exist"""
+        response = self.client.get(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_account(self):
+        """It should Update an existing Account"""
+        account = self._create_accounts(1)[0]
+        account_data = account.serialize()
+        account_data["address"] = "123 Updated Street"
+
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}",
+            json=account_data,
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data["id"], account.id)
+        self.assertEqual(data["address"], account_data["address"])
+
+        response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json()["address"], account_data["address"])
+
+    def test_update_account_not_found(self):
+        """It should not Update an Account that does not exist"""
+        account = AccountFactory()
+        response = self.client.put(
+            f"{BASE_URL}/0",
+            json=account.serialize(),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_account(self):
+        """It should Delete an Account"""
+        account = self._create_accounts(1)[0]
+        response = self.client.delete(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.get_data(as_text=True), "")
+
+        response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_account_not_found(self):
+        """It should return 204 when deleting an Account that does not exist"""
+        response = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.get_data(as_text=True), "")
